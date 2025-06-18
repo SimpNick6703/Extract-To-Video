@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  canvas-extractor:
+    build: .
+    container_name: canvas-video-extractor
+    volumes:
+      - ./output:/app/output
+      - ./frames:/app/frames
+    environment:
+      - NODE_ENV=production
+      - DISPLAY=:99
+    security_opt:
+      - seccomp:unconfined
+    shm_size: 2gb
+    command: npm start

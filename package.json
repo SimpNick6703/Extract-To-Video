@@ -1,0 +1,20 @@
+{
+  "name": "canvas-video-extractor",
+  "version": "1.0.0",
+  "description": "Extract animated canvas content and convert to high-quality MP4",
+  "main": "index.js",
+  "scripts": {
+    "start": "node capture.js",
+    "capture": "node capture.js",
+    "convert": "bash convert.sh",
+    "full": "bash run.sh"
+  },
+  "dependencies": {
+    "puppeteer": "^21.6.1",
+    "express": "^4.18.2",
+    "sharp": "^0.32.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
