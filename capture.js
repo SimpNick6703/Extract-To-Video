@@ -38,11 +38,30 @@ async function captureCanvasAnimation() {
 
     console.log('Looking for canvas elements...');
     
-    // Find all canvas elements and select the one with animation
-    const canvasElements = await page.$$('canvas');
-    console.log(`Found ${canvasElements.length} canvas elements`);
+    // Wait a bit more for everything to load
+    await page.waitForTimeout(10000);
+    
+    // Find all canvas elements
+    const canvasInfo = await page.evaluate(() => {
+        const canvases = document.querySelectorAll('canvas');
+        return Array.from(canvases).map((canvas, index) => ({
+            index,
+            width: canvas.width,
+            height: canvas.height,
+            offsetWidth: canvas.offsetWidth,
+            offsetHeight: canvas.offsetHeight,
+            style: canvas.style.cssText,
+            id: canvas.id,
+            className: canvas.className
+        }));
+    });
+    
+    console.log(`Found ${canvasInfo.length} canvas elements:`);
+    canvasInfo.forEach((info, i) => {
+        console.log(`  Canvas ${i}: ${info.width}x${info.height} (display: ${info.offsetWidth}x${info.offsetHeight}) id="${info.id}" class="${info.className}"`);
+    });
 
-    if (canvasElements.length === 0) {
+    if (canvasInfo.length === 0) {
         throw new Error('No canvas elements found on the page');
     }
 
@@ -54,109 +73,128 @@ async function captureCanvasAnimation() {
 
     let frameCount = 0;
     const maxFrames = 600; // Capture 10 seconds at 60fps
-    const captureInterval = 1000 / 60; // 60fps
+    const captureInterval = 1000 / 30; // 30fps for more reliable capture
 
     console.log('Starting frame capture...');
 
-    // Inject canvas capture script
-    await page.evaluate(() => {
-        window.capturedFrames = [];
-        window.isCapturing = false;
-        window.frameIndex = 0;
+    // Simple interval-based capture approach
+    const capturePromise = new Promise(async (resolve, reject) => {
+        const frames = [];
+        let captureCount = 0;
+        let consecutiveFailures = 0;
         
-        // Function to capture canvas frame
-        window.captureFrame = function(canvas) {
-            if (!canvas) return null;
+        const captureFrame = async () => {
             try {
-                return canvas.toDataURL('image/png');
-            } catch (e) {
-                console.error('Error capturing frame:', e);
-                return null;
-            }
-        };
-        
-        // Override requestAnimationFrame to capture frames
-        const originalRAF = window.requestAnimationFrame;
-        window.requestAnimationFrame = function(callback) {
-            return originalRAF.call(window, function(timestamp) {
-                const result = callback(timestamp);
-                
-                if (window.isCapturing && window.frameIndex < 600) {
-                    // Find the animated canvas (usually the largest or most recently drawn to)
+                // Try to capture from the largest canvas first
+                const frameData = await page.evaluate(() => {
                     const canvases = document.querySelectorAll('canvas');
-                    let targetCanvas = null;
+                    let bestCanvas = null;
+                    let maxArea = 0;
                     
-                    // Try to find the canvas with the most recent drawing activity
+                    // Find the largest canvas
                     for (let canvas of canvases) {
-                        if (canvas.width > 100 && canvas.height > 100) {
-                            const ctx = canvas.getContext('2d');
-                            if (ctx) {
-                                targetCanvas = canvas;
-                                break;
-                            }
+                        const area = canvas.width * canvas.height;
+                        if (area > maxArea && area > 10000) { // Minimum size filter
+                            maxArea = area;
+                            bestCanvas = canvas;
                         }
                     }
                     
-                    if (targetCanvas) {
-                        const frameData = window.captureFrame(targetCanvas);
-                        if (frameData) {
-                            window.capturedFrames.push({
-                                index: window.frameIndex,
-                                data: frameData,
-                                timestamp: timestamp
-                            });
-                            window.frameIndex++;
+                    if (bestCanvas) {
+                        try {
+                            const dataURL = bestCanvas.toDataURL('image/png');
+                            return {
+                                success: true,
+                                data: dataURL,
+                                width: bestCanvas.width,
+                                height: bestCanvas.height,
+                                canvasIndex: Array.from(canvases).indexOf(bestCanvas)
+                            };
+                        } catch (e) {
+                            return { success: false, error: e.message };
                         }
+                    }
+                    
+                    return { success: false, error: 'No suitable canvas found' };
+                });
+                
+                if (frameData.success) {
+                    frames.push({
+                        index: captureCount,
+                        data: frameData.data,
+                        timestamp: Date.now(),
+                        canvasInfo: {
+                            width: frameData.width,
+                            height: frameData.height,
+                            canvasIndex: frameData.canvasIndex
+                        }
+                    });
+                    consecutiveFailures = 0;
+                    
+                    if (captureCount % 30 === 0) {
+                        console.log(`Captured ${captureCount + 1} frames from canvas ${frameData.canvasIndex} (${frameData.width}x${frameData.height})`);
+                    }
+                } else {
+                    consecutiveFailures++;
+                    if (consecutiveFailures === 1) {
+                        console.log(`Frame capture failed: ${frameData.error}`);
+                    }
+                    
+                    // If we fail too many times consecutively, stop
+                    if (consecutiveFailures > 30) {
+                        console.log('Too many consecutive failures, stopping capture');
+                        resolve(frames);
+                        return;
                     }
                 }
                 
-                return result;
-            });
-        };
-    });
-
-    // Start capturing
-    await page.evaluate(() => {
-        window.isCapturing = true;
-        console.log('Started capturing frames...');
-    });
-
-    // Wait for frames to accumulate
-    let lastFrameCount = 0;
-    let stableCount = 0;
-    
-    while (frameCount < maxFrames) {
-        await page.waitForTimeout(1000);
-        
-        const currentFrameCount = await page.evaluate(() => window.capturedFrames.length);
-        
-        console.log(`Captured ${currentFrameCount} frames...`);
-        
-        if (currentFrameCount === lastFrameCount) {
-            stableCount++;
-            if (stableCount > 10) {
-                console.log('Frame count stable, animation might have stopped');
-                break;
+                captureCount++;
+                
+                if (captureCount >= maxFrames) {
+                    resolve(frames);
+                } else {
+                    setTimeout(captureFrame, captureInterval);
+                }
+                
+            } catch (error) {
+                console.error('Error in capture frame:', error);
+                consecutiveFailures++;
+                if (consecutiveFailures > 10) {
+                    reject(error);
+                } else {
+                    setTimeout(captureFrame, captureInterval);
+                }
             }
-        } else {
-            stableCount = 0;
+        };
+        
+        // Start capturing
+        setTimeout(captureFrame, 1000); // Wait 1 second before starting
+    });
+
+    const frames = await capturePromise;
+
+    console.log(`Capture completed. Total frames: ${frames.length}`);
+    
+    // If no frames were captured, try screenshot method as fallback
+    if (frames.length === 0) {
+        console.log('No canvas frames captured, trying screenshot method...');
+        
+        for (let i = 0; i < 30; i++) { // Capture 30 screenshots over 10 seconds
+            const screenshot = await page.screenshot({
+                type: 'png',
+                fullPage: false
+            });
+            
+            const filename = path.join(framesDir, `screenshot_${String(i).padStart(6, '0')}.png`);
+            fs.writeFileSync(filename, screenshot);
+            
+            console.log(`Captured screenshot ${i + 1}/30`);
+            await page.waitForTimeout(333); // ~3 fps
         }
         
-        lastFrameCount = currentFrameCount;
-        frameCount = currentFrameCount;
-        
-        if (frameCount >= maxFrames) break;
+        console.log('Screenshot capture completed');
+        return 30; // Return number of screenshots
     }
-
-    // Stop capturing
-    await page.evaluate(() => {
-        window.isCapturing = false;
-    });
-
-    console.log(`Capture completed. Total frames: ${frameCount}`);
-
-    // Extract frames from the page
-    const frames = await page.evaluate(() => window.capturedFrames);
 
     if (frames.length === 0) {
         throw new Error('No frames were captured. The animation might not be running or canvas is not accessible.');
@@ -171,7 +209,7 @@ async function captureCanvasAnimation() {
         const filename = path.join(framesDir, `frame_${String(i).padStart(6, '0')}.png`);
         fs.writeFileSync(filename, base64Data, 'base64');
         
-        if (i % 60 === 0) {
+        if (i % 30 === 0 || i === frames.length - 1) {
             console.log(`Saved frame ${i + 1}/${frames.length}`);
         }
     }
