@@ -4,13 +4,16 @@ const path = require('path');
 
 async function captureCanvasAnimation() {
     const browser = await puppeteer.launch({
-        headless: false, // Set to true for production
+        headless: true, // Always true for Docker/production
+        executablePath: '/usr/bin/google-chrome-stable',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-web-security',
             '--allow-running-insecure-content',
+            '--disable-gpu',
+            '--disable-features=VizDisplayCompositor',
             '--window-size=1920,1080'
         ]
     });
