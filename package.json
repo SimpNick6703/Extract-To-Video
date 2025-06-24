@@ -10,8 +10,8 @@
     "full": "bash run.sh"
   },
   "dependencies": {
-    "puppeteer": "^23.0.0",
-    "express": "^5.1.0",
+    "puppeteer": "^24.10.2",
+    "express": "^4.19.2",
     "sharp": "^0.33.4"
   },
   "devDependencies": {
