@@ -4,10 +4,7 @@ echo "=========================================="
 echo "Canvas Animation Capture and Conversion"
 echo "=========================================="
 
-# Set permissions
-chmod +x /app/convert.sh
-
-echo "Step 1: Capturing canvas animation frames..."
+echo "Step 1: Capturing canvas animation frames with requestAnimationFrame sync..."
 echo "This may take a few minutes..."
 
 # Run the capture script
@@ -16,17 +13,17 @@ node capture.js
 # Check if capture was successful
 if [ $? -eq 0 ] && [ -d "./frames" ] && [ "$(ls -A ./frames)" ]; then
     echo ""
-    echo "✓ Frame capture completed successfully!"
+    echo "SUCCESS: Frame capture completed successfully!"
     echo ""
-    echo "Step 2: Converting frames to MP4..."
+    echo "Step 2: Converting frames to MP4 using canvas-sketch-cli..."
     
-    # Run the conversion script
-    bash convert.sh
+    # Run the video creation script
+    node create-video.js
     
     if [ $? -eq 0 ]; then
         echo ""
         echo "=========================================="
-        echo "✓ Process completed successfully!"
+        echo "SUCCESS: Process completed successfully!"
         echo "=========================================="
         echo ""
         echo "Output files are available in the ./output directory:"
@@ -35,11 +32,11 @@ if [ $? -eq 0 ] && [ -d "./frames" ] && [ "$(ls -A ./frames)" ]; then
         echo "To copy files from container, run:"
         echo "docker cp <container_id>:/app/output ./output"
     else
-        echo "✗ Video conversion failed!"
+        echo "ERROR: Video conversion failed!"
         exit 1
     fi
 else
-    echo "✗ Frame capture failed or no frames were captured!"
+    echo "ERROR: Frame capture failed or no frames were captured!"
     echo "Please check the website URL and ensure the animation is running."
     exit 1
 fi

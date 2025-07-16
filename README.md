@@ -1,17 +1,25 @@
 # Canvas Animation Extractor
 
-Extract animated canvas content from the Wuthering Waves event page and convert to high-quality MP4 files.
+Extract animated canvas content from the Wuthering Waves event page and convert to high-quality MP4 files using `canvas-sketch-cli` and synchronized frame capture.
 
 ## Features
 
+- **Synchronized Frame Capture**: Uses `requestAnimationFrame` hooking for perfect frame synchronization
 - **High Resolution Capture**: Captures at maximum resolution (up to 4K)
-- **Multiple Quality Options**: Generates ultra-high quality, balanced, and web-optimized versions
-- **Smart Frame Detection**: Automatically detects animated canvas elements
+- **canvas-sketch Integration**: Uses `canvas-sketch-cli` for professional video encoding
+- **Smart Frame Detection**: Automatically detects the largest, most active canvas elements
 - **60 FPS Support**: Captures and maintains smooth 60 FPS animation
 - **Docker-based**: No need to install Node.js or dependencies locally
 
 ## Quick Start
 
+### Windows
+1. **Run the extraction**:
+   ```cmd
+   extract.bat
+   ```
+
+### Linux/macOS
 1. **Run the extraction**:
    ```bash
    ./extract.sh
@@ -20,18 +28,18 @@ Extract animated canvas content from the Wuthering Waves event page and convert 
 That's it! The script will:
 1. Build the Docker image
 2. Navigate to the Wuthering Waves event page
-3. Capture canvas animation frames
-4. Convert frames to multiple MP4 formats
-5. Copy output files to your local `./output` directory
+3. Inject `requestAnimationFrame` hooks for synchronized capture
+4. Capture canvas animation frames perfectly in sync
+5. Convert frames to high-quality MP4 using `canvas-sketch-cli`
+6. Copy output files to your local `./output` directory
 
 ## Output Files
 
-The script generates several versions of the animation:
+The script generates a single high-quality MP4 file:
 
-- `animation_ultra_quality.mp4` - Highest quality (CRF 15, large file)
-- `animation_high_quality.mp4` - High quality balanced (CRF 18, good size/quality ratio)
-- `animation_web_optimized.mp4` - Web-optimized 1080p version (CRF 23)
-- `animation_preview.gif` - GIF preview for quick viewing
+- `animation.mp4` - High quality video (CRF 18, H.265 encoding)
+
+The output is optimized for quality while maintaining reasonable file size. Metadata from the capture process is saved in `capture_metadata.json`.
 
 ## Manual Usage
 
@@ -49,22 +57,48 @@ If you prefer to run steps individually:
 
 3. **Copy output files**:
    ```bash
+   # Linux/macOS
    docker cp <container_id>:/app/output ./output
+   
+   # Windows
+   docker cp <container_id>:/app/output .\output
    ```
+
+You can also run the scripts individually inside the container:
+```bash
+node capture.js      # Capture frames
+node create-video.js # Create video from frames
+```
+
+## Platform Support
+
+This project works on **Windows**, **Linux**, and **macOS**:
+
+- **Windows**: Use `extract.bat` (double-click or run from Command Prompt)
+- **Linux/macOS**: Use `./extract.sh` (requires executable permissions)
 
 ## Troubleshooting
 
 ### No frames captured
 - Ensure the website is accessible and the animation is running
 - Check if the canvas elements are being rendered correctly
-- The script waits 5 seconds for the page to load - increase this if needed
+- The script waits for animations to start - it will stop automatically after 15 seconds or 900 frames
 
 ### Poor quality output
 - The script captures at maximum resolution detected
 - For 4K output, ensure your display/browser supports high DPI
-- Ultra-quality version uses CRF 15 for maximum quality
+- The output uses CRF 18 for high quality with reasonable file size
 
-### Docker issues
+### canvas-sketch-cli issues
+- If `canvas-sketch-cli` fails, the script automatically falls back to direct FFmpeg
+- Ensure FFmpeg is available in the container (it's included in the Dockerfile)
+
+### Docker build issues
+- **Network/DNS errors**: Try using a different Docker registry or check your internet connection
+- **Node.js image issues**: The Dockerfile uses Node.js 20 for better compatibility
+- **Proxy issues**: If behind a corporate firewall, configure Docker proxy settings
+
+### General Docker issues
 - Ensure Docker is running: `docker info`
 - Increase shared memory if needed: `--shm-size=4gb`
 - Check Docker logs: `docker logs <container_id>`
@@ -72,28 +106,45 @@ If you prefer to run steps individually:
 ## Technical Details
 
 - **Browser**: Uses Puppeteer with Chromium for rendering
-- **Capture Method**: Intercepts `requestAnimationFrame()` calls
-- **Video Encoding**: FFmpeg with H.264 (libx264)
+- **Capture Method**: Hooks into `requestAnimationFrame` for perfect synchronization
+- **Video Encoding**: `canvas-sketch-cli` with H.265 encoding (fallback to FFmpeg if needed)
 - **Frame Format**: PNG for lossless intermediate storage
 - **Resolution**: Viewport set to 3840x2160 (4K) for maximum quality
+- **Frame Rate**: Automatically detects and maintains original animation frame rate
 
 ## Files Structure
 
 ```
-├── capture.js          # Main capture script (Node.js + Puppeteer)
-├── convert.sh          # FFmpeg conversion script
+├── capture.js          # Main capture script with requestAnimationFrame hooking
+├── create-video.js     # Video creation using canvas-sketch-cli
 ├── docker-run.sh       # Container execution script
-├── extract.sh          # Main user script (build + run + copy)
+├── extract.sh          # Main user script for Linux/macOS (build + run + copy)
+├── extract.bat         # Main user script for Windows (build + run + copy)
 ├── Dockerfile          # Docker container definition
-├── package.json        # Node.js dependencies
+├── package.json        # Node.js dependencies (includes canvas-sketch-cli)
 └── README.md           # This file
 ```
 
 ## Requirements
 
-- Docker (only requirement on host system)
+- **Docker Desktop** (Windows/macOS) or **Docker Engine** (Linux)
 - Internet connection (to access the Wuthering Waves event page)
 - ~2GB disk space for temporary frames and output videos
+
+### Windows-specific notes:
+- Docker Desktop must be running
+- The batch file will pause on completion or error for review
+- Use Command Prompt or PowerShell to run manually if needed
+
+## Architecture Improvements
+
+This version includes several key improvements over the original:
+
+1. **Synchronized Capture**: Replaces `setInterval` with `requestAnimationFrame` hooking for perfect frame timing
+2. **canvas-sketch Integration**: Uses the professional `canvas-sketch-cli` tool for video encoding
+3. **Simplified Output**: Generates one high-quality file instead of multiple versions
+4. **Better Error Handling**: Includes fallback mechanisms and detailed error reporting
+5. **Async/Await**: Modern JavaScript patterns for better code maintainability
 
 ## License
 

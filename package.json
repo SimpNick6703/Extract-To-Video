@@ -6,13 +6,12 @@
   "scripts": {
     "start": "node capture.js",
     "capture": "node capture.js",
-    "convert": "bash convert.sh",
+    "create-video": "node create-video.js",
     "full": "bash run.sh"
   },
   "dependencies": {
     "puppeteer": "^24.10.2",
-    "express": "^5.1.0",
-    "sharp": "^0.34.2"
+    "canvas-sketch-cli": "^1.12.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
