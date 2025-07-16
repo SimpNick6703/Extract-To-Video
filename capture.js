@@ -31,18 +31,20 @@ async function captureCanvasAnimation() {
         console.log('Waiting for the page to become interactive...');
         await new Promise(resolve => setTimeout(resolve, 3000));
 
+        // Simulate mouse scrolling to navigate the webpage's slider to the correct section.
         console.log('Simulating user scrolling to the animation section...');
         for (let i = 0; i < 3; i++) {
-            await page.mouse.wheel({ deltaY: 800 });
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await page.mouse.wheel({ deltaY: 800 }); // Simulate scrolling down
+            await new Promise(resolve => setTimeout(resolve, 1500)); // Wait for slide animation
             console.log(`Scroll ${i + 1}/3...`);
         }
 
-        const canvasXPath = '/html/body/div/div[1]/div[2]/div/div/div[4]/div[3]/canvas';
+        // The most reliable selector for the canvas is its unique ID.
+        const canvasSelector = '#spineCanvas';
         
-        console.log('Waiting for the canvas element to be confirmed in the viewport...');
-        // FIX: Replaced the deprecated page.waitForXPath() with the modern page.waitForSelector('xpath/...')
-        await page.waitForSelector('xpath/' + canvasXPath, { timeout: 20000 });
+        console.log('Waiting for the canvas element to become visible...');
+        // Wait for the element with the ID "spineCanvas" to not only exist but be visible.
+        await page.waitForSelector(canvasSelector, { visible: true, timeout: 20000 });
         console.log('✅ Canvas element found and ready.');
 
         console.log('Starting canvas capture...');
@@ -56,8 +58,9 @@ async function captureCanvasAnimation() {
             frames.push(filePath);
         });
 
-        await page.evaluate((xpath) => {
-            const canvas = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        // Inject script to capture frames using the CSS ID selector.
+        await page.evaluate((selector) => {
+            const canvas = document.querySelector(selector);
             if (!canvas) {
                 console.error('Could not find the canvas element to hook requestAnimationFrame.');
                 return;
@@ -69,13 +72,13 @@ async function captureCanvasAnimation() {
                 const dataUrl = canvas.toDataURL('image/png');
                 window.saveFrame(dataUrl);
             };
-        }, canvasXPath);
+        }, canvasSelector);
 
         console.log(`Capturing for ${captureDuration / 1000} seconds...`);
         await new Promise(resolve => setTimeout(resolve, captureDuration));
 
         if (frames.length === 0) {
-            throw new Error('No frames were captured! The canvas might not be animating.');
+            throw new Error('No frames were captured! Ensure the canvas is animating.');
         }
 
         console.log(`Successfully captured ${frames.length} frames.`);
