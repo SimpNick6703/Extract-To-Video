@@ -28,25 +28,21 @@ async function captureCanvasAnimation() {
         console.log('Navigating to the website...');
         await page.goto(url, { waitUntil: 'networkidle0' });
 
-        // Wait a few seconds for the initial page animations to settle.
         console.log('Waiting for the page to become interactive...');
         await new Promise(resolve => setTimeout(resolve, 3000));
 
-        // FIX: Simulate mouse wheel scrolling to navigate through the swiper.js slides.
-        // This is required because the site doesn't use a native scrollbar.
-        // We scroll down 3 times to ensure we reach the "NEW OUTFITS" section.
         console.log('Simulating user scrolling to the animation section...');
         for (let i = 0; i < 3; i++) {
-            await page.mouse.wheel({ deltaY: 800 }); // Positive deltaY scrolls down
-            await new Promise(resolve => setTimeout(resolve, 1500)); // Wait for slide animation
+            await page.mouse.wheel({ deltaY: 800 });
+            await new Promise(resolve => setTimeout(resolve, 1500));
             console.log(`Scroll ${i + 1}/3...`);
         }
 
-        // The specific XPath to the canvas element. This is the most reliable locator.
         const canvasXPath = '/html/body/div/div[1]/div[2]/div/div/div[4]/div[3]/canvas';
         
         console.log('Waiting for the canvas element to be confirmed in the viewport...');
-        await page.waitForXPath(canvasXPath, { timeout: 10000 }); // Wait up to 10s to be safe
+        // FIX: Replaced the deprecated page.waitForXPath() with the modern page.waitForSelector('xpath/...')
+        await page.waitForSelector('xpath/' + canvasXPath, { timeout: 20000 });
         console.log('✅ Canvas element found and ready.');
 
         console.log('Starting canvas capture...');
@@ -60,9 +56,7 @@ async function captureCanvasAnimation() {
             frames.push(filePath);
         });
 
-        // Inject script to capture frames, locating the canvas using its XPath.
         await page.evaluate((xpath) => {
-            // Find the canvas element using its XPath inside the browser context.
             const canvas = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
             if (!canvas) {
                 console.error('Could not find the canvas element to hook requestAnimationFrame.');
@@ -77,7 +71,6 @@ async function captureCanvasAnimation() {
             };
         }, canvasXPath);
 
-        // Let the capture run for the specified duration.
         console.log(`Capturing for ${captureDuration / 1000} seconds...`);
         await new Promise(resolve => setTimeout(resolve, captureDuration));
 
@@ -89,7 +82,7 @@ async function captureCanvasAnimation() {
 
     } catch (error) {
         console.error(`Error during capture: ${error.message}`);
-        process.exitCode = 1; // Set failure exit code for the batch script
+        process.exitCode = 1;
     } finally {
         console.log('Closing browser...');
         await browser.close();
