@@ -5,86 +5,104 @@ const path = require('path');
 // --- Configuration ---
 const url = process.argv[2] || 'https://wutheringwaves-event.kurogames-global.com/package/jUEp_Lightly_We_Foss_the_Crown';
 const outputDir = path.join(__dirname, 'frames');
-const captureDuration = 15000; // Capture for 15 seconds
+const captureDuration = 15000;
 
-/**
- * Main function to capture canvas animation frames.
- */
 async function captureCanvasAnimation() {
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    console.log('Launching browser...');
+    console.log('Launching browser in headless mode...');
     const browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1920,1080']
     });
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1920, height: 1080 });
 
     try {
-        console.log('Navigating to the website...');
-        await page.goto(url, { waitUntil: 'networkidle0' });
+        console.log('Navigating to the website with a longer timeout...');
+        await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
 
-        console.log('Waiting for the page to become interactive...');
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log('Taking initial screenshot to see what loaded: debug_initial_load.png');
+        await page.screenshot({ path: 'debug_initial_load.png', fullPage: true });
 
-        // Simulate mouse scrolling to navigate the webpage's slider to the correct section.
-        console.log('Simulating user scrolling to the animation section...');
+        // Check for and click any potential cookie/consent banners to unblock the page.
+        console.log('Checking for any consent/overlay banners...');
+        // FIX: Replaced the non-standard :has-text selector with a standard JavaScript function.
+        const consentButtonHandle = await page.evaluateHandle(() => {
+            const keywords = ['accept all', 'agree', 'consent', 'allow all']; // List of common keywords
+            const buttons = Array.from(document.querySelectorAll('button'));
+            for (const button of buttons) {
+                const buttonText = button.innerText.toLowerCase();
+                for (const keyword of keywords) {
+                    if (buttonText.includes(keyword)) {
+                        return button; // Return the button element if found
+                    }
+                }
+            }
+            return null; // Return null if no button is found
+        });
+
+        if (consentButtonHandle && consentButtonHandle.asElement()) {
+            console.log('Consent button found, clicking it...');
+            await consentButtonHandle.asElement().click();
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for overlay to disappear
+        } else {
+            console.log('No common consent buttons found, proceeding...');
+        }
+        
+        const mainSwiperSelector = '.main-swiper';
+        console.log('Waiting for main content area and hovering over it...');
+        await page.waitForSelector(mainSwiperSelector, { timeout: 15000 });
+        await page.hover(mainSwiperSelector);
+
+        console.log('Simulating user scrolling with targeted mouse wheel...');
         for (let i = 0; i < 3; i++) {
-            await page.mouse.wheel({ deltaY: 800 }); // Simulate scrolling down
-            await new Promise(resolve => setTimeout(resolve, 1500)); // Wait for slide animation
-            console.log(`Scroll ${i + 1}/3...`);
+            await page.mouse.wheel({ deltaY: 1000 });
+            console.log(`Scroll attempt ${i + 1}/3...`);
+            await new Promise(resolve => setTimeout(resolve, 1500));
         }
 
-        // The most reliable selector for the canvas is its unique ID.
         const canvasSelector = '#spineCanvas';
+        console.log('Taking screenshot after scrolling: debug_post_scroll.png');
+        await page.screenshot({ path: 'debug_post_scroll.png', fullPage: true });
         
         console.log('Waiting for the canvas element to become visible...');
-        // Wait for the element with the ID "spineCanvas" to not only exist but be visible.
-        await page.waitForSelector(canvasSelector, { visible: true, timeout: 20000 });
+        await page.waitForSelector(canvasSelector, { visible: true, timeout: 10000 });
         console.log('✅ Canvas element found and ready.');
 
         console.log('Starting canvas capture...');
-
         const frames = [];
         await page.exposeFunction('saveFrame', (dataUrl) => {
             const frameNumber = frames.length.toString().padStart(5, '0');
             const filePath = path.join(outputDir, `frame-${frameNumber}.png`);
-            const imageBuffer = Buffer.from(dataUrl.split(',')[1], 'base64');
-            fs.writeFileSync(filePath, imageBuffer);
-            frames.push(filePath);
+            fs.writeFileSync(filePath, Buffer.from(dataUrl.split(',')[1], 'base64'));
         });
 
-        // Inject script to capture frames using the CSS ID selector.
         await page.evaluate((selector) => {
             const canvas = document.querySelector(selector);
-            if (!canvas) {
-                console.error('Could not find the canvas element to hook requestAnimationFrame.');
-                return;
-            }
-
-            const originalRequestAnimationFrame = window.requestAnimationFrame;
-            window.requestAnimationFrame = function(callback) {
-                originalRequestAnimationFrame(callback);
-                const dataUrl = canvas.toDataURL('image/png');
-                window.saveFrame(dataUrl);
+            if (!canvas) { return; }
+            const originalRAF = window.requestAnimationFrame;
+            window.requestAnimationFrame = (callback) => {
+                originalRAF(callback);
+                window.saveFrame(canvas.toDataURL('image/png'));
             };
-        }, canvasSelector);
+        }, selector);
 
         console.log(`Capturing for ${captureDuration / 1000} seconds...`);
         await new Promise(resolve => setTimeout(resolve, captureDuration));
 
         if (frames.length === 0) {
-            throw new Error('No frames were captured! Ensure the canvas is animating.');
+            throw new Error('No frames were captured!');
         }
-
+        
         console.log(`Successfully captured ${frames.length} frames.`);
 
     } catch (error) {
         console.error(`Error during capture: ${error.message}`);
+        console.error('Please check the debug screenshots if they were created.');
         process.exitCode = 1;
     } finally {
         console.log('Closing browser...');
