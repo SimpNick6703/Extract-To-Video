@@ -20,14 +20,19 @@ RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --d
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first
 COPY package*.json ./
 
 # Install Node.js dependencies
 RUN npm install
 
-# Copy application code
-COPY . .
+# Copy shell scripts and fix line endings
+COPY *.sh ./
+RUN sed -i 's/\r$//' *.sh && chmod +x *.sh
+
+# Copy remaining application code
+COPY *.js ./
+COPY *.md ./
 
 # Create output directory
 RUN mkdir -p /app/output /app/frames
