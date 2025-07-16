@@ -1,69 +1,43 @@
 #!/bin/bash
 
-echo "Canvas Animation Extractor for Wuthering Waves"
-echo "================================================="
+echo "=========================================="
+echo "Canvas Animation Capture and Conversion"
+echo "=========================================="
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo "ERROR: Docker is not running. Please start Docker first."
-    exit 1
-fi
+# Step 1: Build the Docker image if it doesn't exist
+docker-compose build
 
-echo "Building Docker image..."
-docker build -t canvas-extractor .
+echo ""
+echo "Step 1: Capturing canvas animation frames..."
+echo "This may take a few minutes..."
 
+# Use the correct service name 'canvas-extractor' and run capture.js directly
+docker-compose run --rm canvas-extractor node capture.js
 if [ $? -ne 0 ]; then
-    echo "ERROR: Docker build failed!"
+    echo ""
+    echo "ERROR: Frame capture failed!"
+    echo "Please check the logs and debug screenshots (debug_*.png)."
     exit 1
 fi
 
-echo "SUCCESS: Docker image built successfully!"
 echo ""
-echo "Running canvas extraction..."
-echo "This will:"
-echo "  1. Navigate to the Wuthering Waves event page"
-echo "  2. Capture canvas animation frames at maximum resolution"
-echo "  3. Convert frames to high-quality MP4 files"
-echo ""
+echo "=========================================="
+echo "Step 2: Converting frames to a high-quality video..."
+echo "=========================================="
 
-# Create output directory on host
-mkdir -p ./output
-
-# Run the container
-CONTAINER_ID=$(docker run -d --shm-size=2gb canvas-extractor)
-
-echo "Container started with ID: $CONTAINER_ID"
-echo "Following container logs..."
-echo ""
-
-# Follow logs
-docker logs -f $CONTAINER_ID
-
-# Check if container completed successfully
-EXIT_CODE=$(docker wait $CONTAINER_ID)
-
-if [ $EXIT_CODE -eq 0 ]; then
+# Use the correct service name 'canvas-extractor' and run create-video.js directly
+docker-compose run --rm canvas-extractor node create-video.js
+if [ $? -ne 0 ]; then
     echo ""
-    echo "SUCCESS: Extraction completed successfully!"
-    echo "Copying output files to host..."
-    
-    # Copy output files to host
-    docker cp $CONTAINER_ID:/app/output ./
-    docker cp $CONTAINER_ID:/app/capture_metadata.json ./ 2>/dev/null || true
-    
-    echo "SUCCESS: Files copied to ./output directory:"
-    ls -la ./output/
-    
-    echo ""
-    echo "Process completed! Check the ./output directory for your videos."
-else
-    echo ""
-    echo "ERROR: Extraction failed with exit code: $EXIT_CODE"
-    echo "Check the logs above for error details."
+    echo "ERROR: Video creation failed."
+    exit 1
 fi
 
-# Clean up container
+echo ""
+echo "SUCCESS: Process completed!"
+
+# Cleanup
 echo "Cleaning up container..."
-docker rm $CONTAINER_ID > /dev/null
+docker-compose down
 
 echo "Done!"

@@ -7,10 +7,9 @@ services:
     volumes:
       - ./output:/app/output
       - ./frames:/app/frames
+      - .:/app
     environment:
       - NODE_ENV=production
-      - DISPLAY=:99
     security_opt:
       - seccomp:unconfined
     shm_size: 2gb
-    command: npm start

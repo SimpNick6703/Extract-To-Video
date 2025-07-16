@@ -24,39 +24,23 @@ async function captureCanvasAnimation() {
     try {
         console.log('Navigating to the website with a longer timeout...');
         await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
-
+        
+        // This first screenshot is guaranteed to happen and will show us the entry screen.
         console.log('Taking initial screenshot to see what loaded: debug_initial_load.png');
         await page.screenshot({ path: 'debug_initial_load.png', fullPage: true });
 
-        // Check for and click any potential cookie/consent banners to unblock the page.
-        console.log('Checking for any consent/overlay banners...');
-        // FIX: Replaced the non-standard :has-text selector with a standard JavaScript function.
-        const consentButtonHandle = await page.evaluateHandle(() => {
-            const keywords = ['accept all', 'agree', 'consent', 'allow all']; // List of common keywords
-            const buttons = Array.from(document.querySelectorAll('button'));
-            for (const button of buttons) {
-                const buttonText = button.innerText.toLowerCase();
-                for (const keyword of keywords) {
-                    if (buttonText.includes(keyword)) {
-                        return button; // Return the button element if found
-                    }
-                }
-            }
-            return null; // Return null if no button is found
-        });
+        // STRATEGY: Click the center of the page to dismiss any pre-loader or entry screen.
+        console.log('Attempting to dismiss pre-loader screen by clicking the page center...');
+        await page.mouse.click(960, 540, { delay: 100 }); // Click center of 1920x1080 viewport
 
-        if (consentButtonHandle && consentButtonHandle.asElement()) {
-            console.log('Consent button found, clicking it...');
-            await consentButtonHandle.asElement().click();
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for overlay to disappear
-        } else {
-            console.log('No common consent buttons found, proceeding...');
-        }
-        
+        // After the click, wait for the main content selector to appear.
+        // This confirms we've successfully navigated past the entry screen.
         const mainSwiperSelector = '.main-swiper';
-        console.log('Waiting for main content area and hovering over it...');
-        await page.waitForSelector(mainSwiperSelector, { timeout: 15000 });
-        await page.hover(mainSwiperSelector);
+        console.log('Waiting for the main content (.main-swiper) to appear after the click...');
+        await page.waitForSelector(mainSwiperSelector, { timeout: 30000 });
+        
+        console.log('✅ Main content is loaded. Proceeding to scroll.');
+        await page.hover(mainSwiperSelector); // Hover to ensure focus
 
         console.log('Simulating user scrolling with targeted mouse wheel...');
         for (let i = 0; i < 3; i++) {
@@ -66,6 +50,7 @@ async function captureCanvasAnimation() {
         }
 
         const canvasSelector = '#spineCanvas';
+        
         console.log('Taking screenshot after scrolling: debug_post_scroll.png');
         await page.screenshot({ path: 'debug_post_scroll.png', fullPage: true });
         
@@ -89,7 +74,7 @@ async function captureCanvasAnimation() {
                 originalRAF(callback);
                 window.saveFrame(canvas.toDataURL('image/png'));
             };
-        }, selector);
+        }, canvasSelector);
 
         console.log(`Capturing for ${captureDuration / 1000} seconds...`);
         await new Promise(resolve => setTimeout(resolve, captureDuration));
@@ -102,7 +87,7 @@ async function captureCanvasAnimation() {
 
     } catch (error) {
         console.error(`Error during capture: ${error.message}`);
-        console.error('Please check the debug screenshots if they were created.');
+        console.error('Please check the debug screenshots for clues.');
         process.exitCode = 1;
     } finally {
         console.log('Closing browser...');
