@@ -5,9 +5,15 @@ services:
     volumes:
       - ./output:/app/output
       - ./frames:/app/frames
-      # - .:/app
     environment:
       - NODE_ENV=production
     security_opt:
       - seccomp:unconfined
     shm_size: 2gb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

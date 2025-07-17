@@ -13,7 +13,7 @@ echo Step 1: Capturing canvas animation frames...
 echo This may take a few minutes...
 
 REM Use the correct service name 'canvas-extractor' and run capture.js directly
-docker-compose run --rm canvas-extractor node capture.js
+call docker-compose run --rm canvas-extractor node capture.js
 if %errorlevel% neq 0 (
     echo.
     echo ERROR: Frame capture failed!
@@ -27,7 +27,7 @@ echo Step 2: Converting frames to a high-quality video...
 echo ==========================================
 
 REM Use the correct service name 'canvas-extractor' and run create-video.js directly
-docker-compose run --rm canvas-extractor node create-video.js
+call docker-compose run --rm canvas-extractor node create-video.js
 if %errorlevel% neq 0 (
     echo.
     echo ERROR: Video creation failed.
