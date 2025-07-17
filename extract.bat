@@ -6,7 +6,7 @@ echo Canvas Animation Capture and Conversion
 echo ==========================================
 
 REM Step 1: Build the Docker image if it doesn't exist
-docker-compose build
+docker-compose build --no-cache
 
 echo.
 echo Step 1: Capturing canvas animation frames...

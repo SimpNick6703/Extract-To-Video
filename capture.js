@@ -3,9 +3,10 @@ const fs = require('fs');
 const path = require('path');
 
 // --- Configuration ---
-const url = process.argv[2] || 'https://wutheringwaves-event.kurogames-global.com/package/jUEp_Lightly_We_Foss_the_Crown';
+const url = process.argv[2] || 'https://wutheringwaves-event1.kurogames-global.com/?packageId=A1730&language=en&isInternalBrowser=0&platform=PC';
 const outputDir = path.join(__dirname, 'frames');
 const captureDuration = 15000;
+const debugOutputDir = '/app/output';
 
 async function captureCanvasAnimation() {
     if (!fs.existsSync(outputDir)) {
@@ -27,11 +28,13 @@ async function captureCanvasAnimation() {
         
         // This first screenshot is guaranteed to happen and will show us the entry screen.
         console.log('Taking initial screenshot to see what loaded: debug_initial_load.png');
-        await page.screenshot({ path: 'debug_initial_load.png', fullPage: true });
+        await page.screenshot({ path: path.join(debugOutputDir, 'debug_initial_load.png'), fullPage: true }); // Make sure this line is correct
 
         // STRATEGY: Click the center of the page to dismiss any pre-loader or entry screen.
         console.log('Attempting to dismiss pre-loader screen by clicking the page center...');
         await page.mouse.click(960, 540, { delay: 100 }); // Click center of 1920x1080 viewport
+        console.log('Taking screenshot after click: debug_post_click.png'); // ADDED THIS LINE IN PREVIOUS STEP
+        await page.screenshot({ path: path.join(debugOutputDir, 'debug_post_click.png'), fullPage: true }); // Make sure this line is correct
 
         // After the click, wait for the main content selector to appear.
         // This confirms we've successfully navigated past the entry screen.
@@ -52,7 +55,7 @@ async function captureCanvasAnimation() {
         const canvasSelector = '#spineCanvas';
         
         console.log('Taking screenshot after scrolling: debug_post_scroll.png');
-        await page.screenshot({ path: 'debug_post_scroll.png', fullPage: true });
+        await page.screenshot({ path: path.join(debugOutputDir, 'debug_post_scroll.png'), fullPage: true });
         
         console.log('Waiting for the canvas element to become visible...');
         await page.waitForSelector(canvasSelector, { visible: true, timeout: 10000 });
