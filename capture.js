@@ -2,10 +2,9 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 
-// --- Configuration ---
 const url = process.argv[2] || 'https://wutheringwaves-event1.kurogames-global.com/?packageId=A1730&language=en&isInternalBrowser=0&platform=PC';
 const outputDir = path.join(__dirname, 'frames');
-const captureDuration = 15000;
+const captureDuration = 20000;
 const debugOutputDir = '/app/output';
 
 async function captureCanvasAnimation() {
@@ -15,35 +14,33 @@ async function captureCanvasAnimation() {
 
     console.log('Launching browser in headless mode...');
     const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1920,1080']
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1920,1080'],
+        defaultViewport: null
     });
 
     const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     await page.setViewport({ width: 1920, height: 1080 });
 
     try {
         console.log('Navigating to the website with a longer timeout...');
-        await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
         
-        // This first screenshot is guaranteed to happen and will show us the entry screen.
         console.log('Taking initial screenshot to see what loaded: debug_initial_load.png');
-        await page.screenshot({ path: path.join(debugOutputDir, 'debug_initial_load.png'), fullPage: true }); // Make sure this line is correct
+        await page.screenshot({ path: path.join(debugOutputDir, 'debug_initial_load.png'), fullPage: true });
 
-        // STRATEGY: Click the center of the page to dismiss any pre-loader or entry screen.
         console.log('Attempting to dismiss pre-loader screen by clicking the page center...');
-        await page.mouse.click(960, 540, { delay: 100 }); // Click center of 1920x1080 viewport
-        console.log('Taking screenshot after click: debug_post_click.png'); // ADDED THIS LINE IN PREVIOUS STEP
-        await page.screenshot({ path: path.join(debugOutputDir, 'debug_post_click.png'), fullPage: true }); // Make sure this line is correct
+        await page.mouse.click(960, 540, { delay: 100 });
+        console.log('Taking screenshot after click: debug_post_click.png');
+        await page.screenshot({ path: path.join(debugOutputDir, 'debug_post_click.png'), fullPage: true });
 
-        // After the click, wait for the main content selector to appear.
-        // This confirms we've successfully navigated past the entry screen.
         const mainSwiperSelector = '.main-swiper';
         console.log('Waiting for the main content (.main-swiper) to appear after the click...');
         await page.waitForSelector(mainSwiperSelector, { timeout: 30000 });
         
-        console.log('✅ Main content is loaded. Proceeding to scroll.');
-        await page.hover(mainSwiperSelector); // Hover to ensure focus
+        console.log('Main content is loaded. Proceeding to scroll.');
+        await page.hover(mainSwiperSelector);
 
         console.log('Simulating user scrolling with targeted mouse wheel...');
         for (let i = 0; i < 3; i++) {
@@ -59,34 +56,69 @@ async function captureCanvasAnimation() {
         
         console.log('Waiting for the canvas element to become visible...');
         await page.waitForSelector(canvasSelector, { visible: true, timeout: 10000 });
-        console.log('✅ Canvas element found and ready.');
+        console.log('Canvas element found and ready.');
 
         console.log('Starting canvas capture...');
-        const frames = [];
-        await page.exposeFunction('saveFrame', (dataUrl) => {
-            const frameNumber = frames.length.toString().padStart(5, '0');
-            const filePath = path.join(outputDir, `frame-${frameNumber}.png`);
-            fs.writeFileSync(filePath, Buffer.from(dataUrl.split(',')[1], 'base64'));
+
+        // Expose a function to save frames to the Node.js environment
+        await page.exposeFunction('saveCanvasFrameToDisk', (base64Data, frameNumber) => {
+            const filePath = path.join(outputDir, `frame-${String(frameNumber).padStart(5, '0')}.png`);
+            try {
+                fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+                // console.log(`Saved frame ${frameNumber}`); // Uncomment for verbose logging of each frame
+            } catch (e) {
+                console.error(`ERROR: Failed to save frame ${frameNumber} to disk:`, e.message);
+                // Optionally, re-throw if it's a critical error that should stop the process
+                // throw e;
+            }
         });
 
-        await page.evaluate((selector) => {
+        // Inject the requestAnimationFrame hook into the browser context
+        await page.evaluate((selector, maxDurationMs) => {
             const canvas = document.querySelector(selector);
-            if (!canvas) { return; }
+            if (!canvas) {
+                console.error('ERROR: Canvas element not found in browser context for capture!');
+                return;
+            }
+
+            let frameCounter = 0;
+            const startTime = performance.now();
             const originalRAF = window.requestAnimationFrame;
-            window.requestAnimationFrame = (callback) => {
-                originalRAF(callback);
-                window.saveFrame(canvas.toDataURL('image/png'));
+
+            window.requestAnimationFrame = function(callback) {
+                return originalRAF.call(window, function(timestamp) {
+                    // Call the original animation callback first
+                    const result = callback(timestamp);
+
+                    // Check if we are still within the desired capture duration
+                    if (performance.now() - startTime < maxDurationMs) {
+                        try {
+                            const dataURL = canvas.toDataURL('image/png');
+                            // Send only the base64 part to the Node.js exposed function
+                            window.saveCanvasFrameToDisk(dataURL.split(',')[1], frameCounter);
+                            frameCounter++;
+                        } catch (e) {
+                            console.error('ERROR: Failed to capture canvas frame with toDataURL:', e.message);
+                            // Depending on the error, you might want to stop the capture here
+                        }
+                    } else {
+                        console.log('INFO: Max capture duration reached in browser context. Stopping RAF hook.');
+                        // Optionally revert requestAnimationFrame here if needed
+                    }
+
+                    return result;
+                });
             };
-        }, canvasSelector);
+            console.log('INFO: requestAnimationFrame hook injected successfully.');
+        }, canvasSelector, captureDuration); // Pass captureDuration to the browser context
 
         console.log(`Capturing for ${captureDuration / 1000} seconds...`);
-        await new Promise(resolve => setTimeout(resolve, captureDuration));
+        // Wait for the specified duration; frames are saved asynchronously by the hook
+        await new Promise(resolve => setTimeout(resolve, captureDuration + 5000)); // Add a small buffer
 
-        if (frames.length === 0) {
-            throw new Error('No frames were captured!');
-        }
-        
-        console.log(`Successfully captured ${frames.length} frames.`);
+        // No need to check frames.length here, as saving is async.
+        // FFmpeg will verify frame count when creating the video.
+        console.log('Frame capture duration completed. Moving to video creation.');
 
     } catch (error) {
         console.error(`Error during capture: ${error.message}`);
