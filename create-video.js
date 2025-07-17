@@ -5,6 +5,7 @@ const path = require('path');
 async function createVideo() {
     console.log('Starting video creation with FFmpeg...');
 
+    // Check if frames directory exists
     try {
         await fs.access('./frames');
     } catch {
@@ -12,6 +13,7 @@ async function createVideo() {
         process.exit(1);
     }
 
+    // Count frames
     let frameFiles;
     try {
         frameFiles = await fs.readdir('./frames');
@@ -28,13 +30,14 @@ async function createVideo() {
 
     console.log(`Found ${frameFiles.length} frames.`);
 
+    // Create output directory
     try {
         await fs.access('./output');
     } catch {
         await fs.mkdir('./output');
     }
 
-    let fps = 60;
+    let fps = 60; // Default FPS, if no metadata is used
 
     // Use FFmpeg to create the video
     return new Promise((resolve, reject) => {
@@ -47,7 +50,7 @@ async function createVideo() {
             '-crf', '18', // Constant Rate Factor for quality (18-23 is good)
             '-pix_fmt', 'yuv420p', // Pixel format for broad compatibility
             '-movflags', '+faststart', // Optimize for web playback
-            './output/animation.mp4'
+            './output/animation.mp4' // Output to a generic name initially
         ];
 
         console.log(`Running FFmpeg: ffmpeg ${args.join(' ')}`);
