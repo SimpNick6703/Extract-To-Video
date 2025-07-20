@@ -1,0 +1,19 @@
+services:
+  canvas-extractor:
+    build: .
+    container_name: canvas-video-extractor
+    volumes:
+      - ./output:/app/output
+      - ./frames:/app/frames
+    environment:
+      - NODE_ENV=production
+    security_opt:
+      - seccomp:unconfined
+    shm_size: 2gb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
