@@ -62,7 +62,7 @@ async function captureCanvasAnimation() {
 
         // Expose a function to save frames to the Node.js environment
         await page.exposeFunction('saveCanvasFrameToDisk', (base64Data, frameNumber) => {
-            const filePath = path.join(outputDir, `frame-${String(frameNumber).padStart(5, '0')}.png`);
+            const filePath = path.join(outputDir, `frame-${String(frameNumber).padStart(5, '0')}.jpg`);
             try {
                 fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
                 // console.log(`Saved frame ${frameNumber}`); // Uncomment for verbose logging of each frame
@@ -93,7 +93,7 @@ async function captureCanvasAnimation() {
                     // Check if we are still within the desired capture duration
                     if (performance.now() - startTime < maxDurationMs) {
                         try {
-                            const dataURL = canvas.toDataURL('image/png');
+                            const dataURL = canvas.toDataURL('image/jpeg', 0.9);
                             // Send only the base64 part to the Node.js exposed function
                             window.saveCanvasFrameToDisk(dataURL.split(',')[1], frameCounter);
                             frameCounter++;

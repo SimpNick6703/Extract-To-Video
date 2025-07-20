@@ -17,7 +17,7 @@ async function createVideo() {
     let frameFiles;
     try {
         frameFiles = await fs.readdir('./frames');
-        frameFiles = frameFiles.filter(file => file.endsWith('.png'));
+        frameFiles = frameFiles.filter(file => file.endsWith('.jpg'));
     } catch (error) {
         console.error('Error reading frames directory:', error);
         process.exit(1);
@@ -37,20 +37,20 @@ async function createVideo() {
         await fs.mkdir('./output');
     }
 
-    let fps = 60; // Default FPS, if no metadata is used
+    let fps = 6; // Default FPS, if no metadata is used
 
     // Use FFmpeg to create the video
     return new Promise((resolve, reject) => {
         const args = [
             '-y', // Overwrite output file
             '-framerate', fps.toString(),
-            '-i', './frames/frame-%05d.png', // Corrected to %05d for consistency with capture.js
+            '-i', './frames/frame-%05d.jpg', // Corrected to %05d for consistency with capture.js
             '-c:v', 'libx264', // Using H.264 (CPU) for broader compatibility
             '-preset', 'medium', // Good balance of speed and compression
             '-crf', '18', // Constant Rate Factor for quality (18-23 is good)
             '-pix_fmt', 'yuv420p', // Pixel format for broad compatibility
             '-movflags', '+faststart', // Optimize for web playback
-            './output/animation.mp4' // Output to a generic name initially
+            './output/animation_6fps.mp4' // Output to a generic name initially
         ];
 
         console.log(`Running FFmpeg: ffmpeg ${args.join(' ')}`);
