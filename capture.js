@@ -7,6 +7,14 @@ const outputDir = path.join(__dirname, 'frames');
 const captureDuration = 20000;
 const debugOutputDir = '/app/output';
 
+// Browser resolution
+const targetBrowserWidth = 1920 // * 4;
+const targetBrowserHeight = 1080 // * 4;
+
+// Calculate center coordinates dynamically
+const centerX = targetBrowserWidth / 2;
+const centerY = targetBrowserHeight / 2;
+
 async function captureCanvasAnimation() {
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
@@ -15,13 +23,13 @@ async function captureCanvasAnimation() {
     console.log('Launching browser in headless mode...');
     const browser = await puppeteer.launch({
         headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1920,1080'],
+        args: ['--no-sandbox', '--disable-setuid-sandbox', `--window-size=${targetBrowserWidth},${targetBrowserHeight}`],
         defaultViewport: null
     });
 
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setViewport({ width: targetBrowserWidth, height: targetBrowserHeight });
 
     try {
         console.log('Navigating to the website with a longer timeout...');
@@ -31,7 +39,7 @@ async function captureCanvasAnimation() {
         await page.screenshot({ path: path.join(debugOutputDir, 'debug_initial_load.png'), fullPage: true });
 
         console.log('Attempting to dismiss pre-loader screen by clicking the page center...');
-        await page.mouse.click(960, 540, { delay: 100 });
+        await page.mouse.click(centerX, centerY, { delay: 5000 });
         console.log('Taking screenshot after click: debug_post_click.png');
         await page.screenshot({ path: path.join(debugOutputDir, 'debug_post_click.png'), fullPage: true });
 

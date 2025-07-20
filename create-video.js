@@ -46,7 +46,7 @@ async function createVideo() {
             '-framerate', fps.toString(),
             '-i', './frames/frame-%05d.jpg', // Corrected to %05d for consistency with capture.js
             '-c:v', 'libx264', // Using H.264 (CPU) for broader compatibility
-            '-preset', 'medium', // Good balance of speed and compression
+            '-preset', 'veryslow', // Good balance of speed and compression
             '-crf', '18', // Constant Rate Factor for quality (18-23 is good)
             '-pix_fmt', 'yuv420p', // Pixel format for broad compatibility
             '-movflags', '+faststart', // Optimize for web playback
