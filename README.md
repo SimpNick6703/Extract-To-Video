@@ -5,6 +5,9 @@ Extract animated canvas content from the Wuthering Waves event page and convert 
 > [!NOTE]
 > This repository is for extracting a Wuthering Waves Character, Changli's Outfit Animation from their limited time web event [page](https://wutheringwaves-event1.kurogames-global.com/?packageId=A1730&language=en&isInternalBrowser=0&platform=PC).
 
+> [!TIP]
+> Extracted frames and various ffmpeg outputs at different FPS from 1920x1080, 3840x2160 and 7680x4320 browser resolution are put in `frames`, `frames 4k` and `output` respectively. Check out the frames and output videos resolution for more details.
+
 > [!CAUTION]
 > The limited time event has ended and the page has be taken down by the rightful owners (Wuthering Waves, Kuro Games). The page is no longer accessible, hence the repository is archived but will remain publicly accessible for reference.
 
