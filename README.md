@@ -2,13 +2,18 @@
 
 Extract animated canvas content from the Wuthering Waves event page and convert to high-quality MP4 files using synchronized frame capture and FFmpeg.
 
+> [!NOTE]
+> This repository is for extracting a Wuthering Waves Character, Changli's Outfit Animation from their limited time web event [page](https://wutheringwaves-event1.kurogames-global.com/?packageId=A1730&language=en&isInternalBrowser=0&platform=PC).
+
+> [!CAUTION]
+> The limited time event has ended and the page has be taken down by the rightful owners (Wuthering Waves, Kuro Games). The page is no longer accessible, hence the repository is archived but will remain publicly accessible for reference.
+
 ## Features
 
 - **Synchronized Frame Capture**: Uses `requestAnimationFrame` hooking for perfect frame synchronization.
 - **High Resolution Capture**: Captures at 1920x1080 resolution.
 - **Direct FFmpeg Integration**: Uses FFmpeg directly for professional video encoding.
 - **Smart Frame Detection**: Automatically detects the main animated canvas element.
-- **60 FPS Support**: Captures and maintains smooth 60 FPS animation.
 - **Docker-based**: No need to install Node.js or dependencies locally.
 
 ## Quick Start
@@ -106,7 +111,7 @@ This project works on **Windows**, **Linux**, and **macOS**:
 - **Video Encoding**: FFmpeg with H.264 encoding (`libx264` codec), optimized for quality and compatibility.
 - **Frame Format**: PNG for lossless intermediate storage.
 - **Resolution**: Capture viewport is set to 1920x1080.
-- **Frame Rate**: Captures and encodes at 60 FPS.
+- **Frame Rate**: Captures and encodes at 6 FPS.
 
 ## Files Structure
 
